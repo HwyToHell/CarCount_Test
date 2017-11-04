@@ -10,7 +10,7 @@
 #include <string>
 #include <list>
 #include <direct.h> // for _mkdir
-#include "../../../catch/catch.hpp"
+#include <catch.hpp>
 
 
 // TODO: reference additional headers your program requires here
