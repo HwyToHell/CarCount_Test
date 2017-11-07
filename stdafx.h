@@ -5,11 +5,13 @@
 
 #pragma once
 #include <opencv2/opencv.hpp>
+#include <windows.h>
 #include <iostream>
 #include <cmath>
 #include <string>
 #include <list>
 #include <direct.h> // for _mkdir
+#include <sqlite3.h>
 #include <catch.hpp>
 
 
