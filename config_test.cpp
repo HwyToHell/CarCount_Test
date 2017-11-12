@@ -18,6 +18,7 @@ throw 1;
  */
 string dbFile = "test.sqlite";
 
+
 // check composing full path to dbFile
 // delete dbFile, if exists
 SCENARIO("directory manipulation functions") {
@@ -45,6 +46,8 @@ SCENARIO("directory manipulation functions") {
 
 // insert test_value in dbConfig and read it back
 SCENARIO("construction of config, load from and save to db") {
+	double testValue = 9.4;
+	string strTestValue = to_string((long double)testValue);
 	GIVEN("fresh Config") {
 		Config cfg(dbFile);
 		string value, noRet = "";
@@ -52,22 +55,24 @@ SCENARIO("construction of config, load from and save to db") {
 		WHEN("no table existent") {
 			THEN("create table, insert test record, read back")
 				REQUIRE(cfg.queryDbSingle(sqlCreate, noRet) == true);
-				string sqlInsert = "insert into config values ('test_value', 'double', '9.4');";
+				string sqlInsert = "insert into config values ('test_value', 'double', '";
+				sqlInsert += strTestValue;
+				sqlInsert += "');";
 				REQUIRE(cfg.queryDbSingle(sqlInsert, noRet) == true);
 				string sqlSelect = "select value from config where name='test_value';"; 
 				REQUIRE(cfg.queryDbSingle(sqlSelect, value) == true);
-				REQUIRE(value == "9.4");
+				REQUIRE(value == strTestValue);
 		}
 
 	}
 	GIVEN("'test.sqlite' db with config table") {
 		Config cfg(dbFile);
-		cfg.init(); // load parameter from 'test.sqlite'
-		cfg.getDouble("test_value");
-
+		cfg.insertParam(Parameter("test_value", "double", strTestValue));
+		// cfg.init(): load parameters from 'test.sqlite',
+		//   including previously created 'test_value'
+		cfg.init(); 
+		double value = cfg.getDouble("test_value");
+		REQUIRE (value == testValue);
+	}
 }
-/*
- * construct Config
- * change parameter and read back
- * check setValue, getDouble, getIn
- */
+
