@@ -21,7 +21,7 @@ string dbFile = "test.sqlite";
 
 // check composing full path to dbFile
 // delete dbFile, if exists
-SCENARIO("directory manipulation functions") {
+SCENARIO("directory manipulation functions", "[Config]") {
 	GIVEN("$(HOME)/count_traffic") {
 		string fullPath = getHome();
 		fullPath += "count_traffic";
@@ -45,7 +45,7 @@ SCENARIO("directory manipulation functions") {
 }
 
 // insert test_value in dbConfig and read it back
-SCENARIO("construction of config, load from and save to db") {
+SCENARIO("construction of config, load from and save to db", "[Config]") {
 	double testValue = 9.4;
 	string strTestValue = to_string((long double)testValue);
 	GIVEN("fresh Config") {
