@@ -1,3 +1,9 @@
+/// TODO:
+[2018-01-27] test cases and classes for tracker
+- members private:[TrackEntry], [Track], [SceneTracker]
+
+[2017-10-15] set-up test case for contours (contour_test)
+
 [2017-12-17]
 Class Config
 - check Observer Pattern
