@@ -33,6 +33,12 @@ SCENARIO("Get and return trackIDs", "[SceneTracker]")
 	}
 }
 
+
+
+//////////////////////////////////////////////////////////////////////////////
+// implement test for "count and classify"
+//////////////////////////////////////////////////////////////////////////////
+
 struct TwoTracks
 {
 	Track& track1;
@@ -46,25 +52,23 @@ struct TwoTracks
 	}
 };
 
-// Generate two tracks combined in a struct to compare with
+// Generate two tracks in a scene
 //  origin:   start (upper left corner) of inital rectangle
 //  velocity: velocity vector the rectangle will be moved at 
-TwoTracks multiUpdateScene(SceneTracker& scene, Point2i origin1, Point2i origin2, Point2d velocity1, Point2d velocity2)
+void multiUpdateScene(SceneTracker& scene, Point2i origin1, Point2i origin2, Point2d velocity1, Point2d velocity2)
 {
-	scene.mTracks.clear();
 	int height = 100, width = 100;
 	std::list<TrackEntry> blobs;
-	for(size_t i = 0; i < 7; ++i)
+	for(size_t i = 0; i < 10; ++i)
 	{
 		blobs.push_back(TrackEntry(origin1.x + (int)(i*velocity1.x), origin1.y + (int)(i*velocity1.y),  width, height));
 		blobs.push_back(TrackEntry(origin2.x + (int)(i*velocity2.x), origin2.y + (int)(i*velocity2.y),  width, height));
 		scene.updateTracks(blobs);
 	}
-	TwoTracks twoTracks(scene.mTracks.front(), scene.mTracks.back());
-	return twoTracks;
+	return;
 }
 
-SCENARIO("Test tracks, if they have similar velocity", "[SceneTracker]")
+SCENARIO("counting", "[SceneTracker]")
 {
 	GIVEN("SceneTracker with 2 Tracks with 6 updated history elements")
 	{
@@ -80,42 +84,17 @@ SCENARIO("Test tracks, if they have similar velocity", "[SceneTracker]")
 
 		WHEN("velocity vectors have same positive direction, abs cos_phi is larger than 0.9 and projected length is the same")
 		{
-			TwoTracks tracks(multiUpdateScene(scene, org1, org2, vel1, vel2)); // cos phi = 0.995
-			THEN("they have similar velocity")
-				REQUIRE(tracks.track1.hasSimilarVelocityVector(tracks.track2, directionDiff, normDiff) == true);
+			multiUpdateScene(scene, org1, org2, vel1, vel2); // cos phi = 0.995
+			scene.countVehicles(1);
 		}
 
-		WHEN("velocity vectors have same negative direction, abs cos_phi is larger than 0.9 and projected length differs less than 50%")
-		{
-			Point2d vel1 = Point2d(-10,1);
-			Point2d vel2 = Point2d(-7,-1);
-			TwoTracks tracks(multiUpdateScene(scene, org1, org2, vel1, vel2)); // cos phi = -0.919
-			THEN("they have similar velocity")
-				REQUIRE(tracks.track1.hasSimilarVelocityVector(tracks.track2, directionDiff, normDiff) == true);
-		}
-
-		WHEN("velocity vectors have different direction")
-		{
-			vel2 = Point2d(-5,-0.5);
-			TwoTracks tracks(multiUpdateScene(scene, org1, org2, vel1, vel2));
-			THEN("they don't have similar velocity")
-				REQUIRE(tracks.track1.hasSimilarVelocityVector(tracks.track2, directionDiff, normDiff) == false);
-		}
-
-		WHEN("direction of velocity vector deviates from direction of traffic flow -> cos phi smaller than 0.9")
-		{
-			vel2 = Point2d(10, 5); // cos phi = 0,89
-			TwoTracks tracks(multiUpdateScene(scene, org1, org2, vel1, vel2));
-			THEN("they don't have similar velocity")
-				REQUIRE(tracks.track1.hasSimilarVelocityVector(tracks.track2, directionDiff, normDiff) == false);
-		}
-
-		WHEN("same positive direction, cos phi larger than 0.9, but projected length differs more than 50%")
-		{
-			vel2 = Point2d(21, 1); // vel2 > vel1 * 2
-			TwoTracks tracks(multiUpdateScene(scene, org1, org2, vel1, vel2));
-			THEN("they don't have similar velocity")
-				REQUIRE(tracks.track1.hasSimilarVelocityVector(tracks.track2, directionDiff, normDiff) == false);
-		}
 	}
 }
+
+
+/* test cases for count and classify
+ *  direction (left, right) 
+ *  count position
+ *  track length
+ */
+
