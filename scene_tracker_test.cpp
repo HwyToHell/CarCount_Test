@@ -4,25 +4,22 @@
 using namespace std;
 using namespace cv;
 
-
-SCENARIO("Get and return trackIDs", "[SceneTracker]")
-{
-	GIVEN("scene with no tracks")
-	{
+//////////////////////////////////////////////////////////////////////////////
+// ID handling
+//////////////////////////////////////////////////////////////////////////////
+SCENARIO("get and return trackIDs", "[SceneTracker]") {
+	GIVEN("scene with no tracks") {
 		Config config;
 		Config* pConfig = &config;
 		SceneTracker scene(pConfig);
-		WHEN("trackID is pulled 9 times")
-		{
+		WHEN("trackID is pulled 9 times") {
 			int id[9];
 			for (int i = 0; i < 9; ++i)
 				id[i] = scene.nextTrackID();
 			THEN("next trackid is 0")
 				REQUIRE(scene.nextTrackID() == 0);
-			AND_THEN("trackID is returned 9 times")
-			{
-				for (int i = 1; i < 10; ++i)
-				{
+			AND_THEN("trackID is returned 9 times") {
+				for (int i = 1; i < 10; ++i) {
 					REQUIRE(scene.returnTrackID(i));
 					//cout << "returned id[" << i << "]: " << i << endl;
 				}
@@ -36,65 +33,277 @@ SCENARIO("Get and return trackIDs", "[SceneTracker]")
 
 
 //////////////////////////////////////////////////////////////////////////////
-// implement test for "count and classify"
+// update logic (number of tracks, confidence)
 //////////////////////////////////////////////////////////////////////////////
 
-struct TwoTracks
-{
-	Track& track1;
-	Track& track2;
-	TwoTracks(Track& tr1, Track& tr2) : track1(tr1), track2(tr2) {};
-	TwoTracks& operator= (const TwoTracks& tSource)
-	{
-		track1 = tSource.track1;
-		track2 = tSource.track2;
-		return *this;
-	}
-};
-
-// Generate two tracks in a scene
-//  origin:   start (upper left corner) of inital rectangle
-//  velocity: velocity vector the rectangle will be moved at 
-void multiUpdateScene(SceneTracker& scene, Point2i origin1, Point2i origin2, Point2d velocity1, Point2d velocity2)
-{
-	int height = 100, width = 100;
-	std::list<TrackEntry> blobs;
-	for(size_t i = 0; i < 10; ++i)
-	{
-		blobs.push_back(TrackEntry(origin1.x + (int)(i*velocity1.x), origin1.y + (int)(i*velocity1.y),  width, height));
-		blobs.push_back(TrackEntry(origin2.x + (int)(i*velocity2.x), origin2.y + (int)(i*velocity2.y),  width, height));
-		scene.updateTracks(blobs);
-	}
-	return;
-}
-
-SCENARIO("counting", "[SceneTracker]")
-{
-	GIVEN("SceneTracker with 2 Tracks with 6 updated history elements")
-	{
+SCENARIO("update tracks", "[SceneTracker]") {
+	GIVEN("SceneTracker with two Tracks and nUpdates") {
 		Config config;
 		Config* pConfig = &config;
 		SceneTracker scene(pConfig);
-		Point2i org1 = Point2i(100, 100);
-		Point2i org2 = Point2i(500, 500);
-		Point2d vel1 = Point2d(10,1);
-		Point2d vel2 = Point2d(10,-1);
-		double directionDiff = 0.1;
-		double normDiff = 0.5;
 
-		WHEN("velocity vectors have same positive direction, abs cos_phi is larger than 0.9 and projected length is the same")
-		{
-			multiUpdateScene(scene, org1, org2, vel1, vel2); // cos phi = 0.995
-			scene.countVehicles(1);
+		int nUpdates = 9;
+		int truck_width = stoi(pConfig->getParam("truck_width_min"));
+		int truck_height = stoi(pConfig->getParam("truck_height_min"));
+		int truck_vel_x = -10; // moves from right to left
+		int truck_track_length = abs(nUpdates * truck_vel_x);
+		int truck_org_x = truck_track_length; // x will end at 0 after nUpdates
+		
+		// count_pos = 1/2 movement range truck (largest range)
+		int count_pos_x = (truck_track_length + truck_width) / 2; 
+
+		int car_width = truck_width -1;
+		int car_height = truck_height -1;
+		int car_vel_x = 8;// moves from left to right
+		int car_track_length = abs(nUpdates * car_vel_x);
+		int car_org_x = 0;
+
+		int max_confidence = stoi(pConfig->getParam("track_max_confidence"));
+		int max_n_tracks = stoi(pConfig->getParam("max_n_of_tracks"));
+
+		// update count pos in SceneTracker.mClassify
+		pConfig->setParam("count_pos_x", to_string( (long long)(count_pos_x) ));
+		scene.update();
+
+		list<TrackEntry> blobs;
+		list<Track> tracks;
+		for (int i = 0; i <= nUpdates; ++i) {
+			// car
+			blobs.push_back(TrackEntry(car_org_x + i * car_vel_x, 0, car_width, car_height));
+
+			// truck
+			blobs.push_back(TrackEntry(truck_org_x + i * truck_vel_x, 0, truck_width, truck_height));
+
+			tracks = scene.updateTracks(blobs);
 		}
 
+		WHEN("nUpdates are complete") {
+			THEN("two tracks with high confidence are present") {
+				REQUIRE(tracks.size() == 2); 
+	
+				list<Track>::iterator iTrack = tracks.begin();
+				while (iTrack != tracks.end()) {
+					REQUIRE(iTrack->getConfidence() == max_confidence);
+					++iTrack;
+				}
+			}
+		}
+
+		WHEN("9 unrelated blobs are introduced, all trackIDs will be assigned") {
+			int org_x = truck_org_x + 100; // distance large enough to be unassigned
+			blobs.clear();
+			for (int i = 0; i <= nUpdates; ++i) {
+				blobs.push_back(TrackEntry(org_x + i * 100, 0));
+			}
+			tracks = scene.updateTracks(blobs);
+
+			THEN("no trackID is available, \n"
+				"after update with no blobs, trackIDs are available again") { 
+				REQUIRE(scene.nextTrackID() == 0);
+				REQUIRE(tracks.size() == max_n_tracks);			
+				
+				// update with no blobs -> trackID available
+				blobs.clear();
+				tracks = scene.updateTracks(blobs);
+				REQUIRE(scene.nextTrackID() > 0);
+				REQUIRE(tracks.size() == 2);	
+			}
+		}
+
+		WHEN("vehicles are counted") {
+			CountResults cr;
+			cr = scene.countVehicles(1);
+				
+			THEN("one car moves right, one truck moves left") {
+				REQUIRE(cr.carRight == 1);
+				REQUIRE(cr.carLeft == 0);
+				REQUIRE(cr.truckRight == 0);
+				REQUIRE(cr.truckLeft == 1);
+			}
+		}
+	} // GIVEN("SceneTracker with two Tracks and nUpdates")
+} // SCENARIO("update tracks", "[SceneTracker]")
+
+
+//////////////////////////////////////////////////////////////////////////////
+// count and classify
+//////////////////////////////////////////////////////////////////////////////
+
+// creates a track with high confidence that ends 1/2 velocity step before count pos
+//  on the left or on the right, depending on direction,
+//  so that next updateTracks() will move over count pos
+list<Track> createTrackBeforeCountPos(SceneTracker& scene, int vehicle_width, int vehicle_height, 
+	int count_pos_x, int velocity_x) {
+
+	list<TrackEntry> blobs;
+	list<Track> tracks;
+	int nUpdates = 5;
+
+	int track_length = abs(nUpdates * velocity_x);
+	int centroid_x = vehicle_width / 2;
+
+	int org_x; 	// after nUpdates org_x will end at count_pos - velocity_x / 2
+	if (signBit(velocity_x)) { // moves to left
+		org_x = count_pos_x + track_length - centroid_x - velocity_x / 2; 
 	}
+	else { // moves to right
+		org_x = count_pos_x - track_length - centroid_x - velocity_x / 2;
+	}
+	
+	for (int i = 0; i <= nUpdates; ++i) {
+		// truck
+		blobs.push_back(TrackEntry(org_x + i * velocity_x, 0, vehicle_width, vehicle_height));
+
+		tracks = scene.updateTracks(blobs);
+	}
+	return tracks;
 }
 
+SCENARIO("count vehicles", "[SceneTracker]") {
+	GIVEN("SceneTracker with one assigned track") {
+		Config config;
+		Config* pConfig = &config;
+		SceneTracker scene(pConfig);
+		CountResults cr;
 
-/* test cases for count and classify
- *  direction (left, right) 
- *  count position
- *  track length
- */
+		int truck_width = stoi(pConfig->getParam("truck_width_min"));
+		int truck_height = stoi(pConfig->getParam("truck_height_min"));
+		int count_pos_x = stoi(pConfig->getParam("count_pos_x")); 
+		int count_track_length = stoi(pConfig->getParam("count_track_length"));
 
+		int max_confidence = stoi(pConfig->getParam("track_max_confidence"));
+		int max_n_tracks = stoi(pConfig->getParam("max_n_of_tracks"));
+
+		WHEN("vehicle has positive velocity and\n"
+			"is smaller than min_truck in width and height") {
+			int vehicle_width = truck_width - 1;
+			int vehicle_height = truck_height - 1;
+			int velocity_x = 10; // moves from left to right
+			list<Track> tracks = createTrackBeforeCountPos(scene, vehicle_width,
+				vehicle_height, count_pos_x, velocity_x);
+		
+			// count pos not reached yet, but track length sufficient
+			cr = scene.countVehicles();
+			REQUIRE(cr.carRight == 0);
+			REQUIRE(tracks.front().getLength() > count_track_length);
+
+			THEN("carRight is counted") {
+				list<TrackEntry> blobs;
+				Rect vehicle = tracks.front().getActualEntry().rect();
+				vehicle.x += velocity_x;
+
+				// one more updateTracks() and count pos is passed over
+				blobs.push_back(TrackEntry(vehicle));
+				tracks = scene.updateTracks(blobs);
+				cr = scene.countVehicles();
+				
+				REQUIRE(cr.carRight == 1);
+				REQUIRE(cr.carLeft == 0);
+				REQUIRE(cr.truckRight == 0);
+				REQUIRE(cr.truckLeft == 0);
+			}
+		}
+
+		WHEN("vehicle has negative velocity and\n"
+			"is smaller than truck in width and height") {
+			int vehicle_width = truck_width - 1;
+			int vehicle_height = truck_height - 1;
+			int velocity_x = -10; // moves from right to left
+			list<Track> tracks = createTrackBeforeCountPos(scene, vehicle_width,
+				vehicle_height, count_pos_x, velocity_x);
+		
+			// count pos not reached yet, but track length sufficient
+			cr = scene.countVehicles();
+			REQUIRE(cr.carRight == 0);
+			REQUIRE(tracks.front().getLength() > count_track_length);
+
+			THEN("carRight is counted") {
+				list<TrackEntry> blobs;
+				Rect vehicle = tracks.front().getActualEntry().rect();
+				vehicle.x += velocity_x;
+
+				// one more updateTracks() and count pos is passed over
+				blobs.push_back(TrackEntry(vehicle));
+				tracks = scene.updateTracks(blobs);
+				cr = scene.countVehicles();
+				
+				REQUIRE(cr.carRight == 0);
+				REQUIRE(cr.carLeft == 1);
+				REQUIRE(cr.truckRight == 0);
+				REQUIRE(cr.truckLeft == 0);
+			}
+		}
+
+		WHEN("vehicle has positive velocity and\n"
+			"width is smaller than truck but\n"
+			"height is larger than truck") {
+			int vehicle_width = truck_width - 1;
+			int vehicle_height = truck_height + 5;
+			int velocity_x = 10; // moves from right to left
+			list<Track> tracks = createTrackBeforeCountPos(scene, vehicle_width,
+				vehicle_height, count_pos_x, velocity_x);
+		
+			// count pos not reached yet, but track length sufficient
+			cr = scene.countVehicles();
+			REQUIRE(cr.carRight == 0);
+			REQUIRE(tracks.front().getLength() > count_track_length);
+
+			THEN("carRight is counted") {
+				list<TrackEntry> blobs;
+				Rect vehicle = tracks.front().getActualEntry().rect();
+				vehicle.x += velocity_x;
+
+				// one more updateTracks() and count pos is passed over
+				blobs.push_back(TrackEntry(vehicle));
+				tracks = scene.updateTracks(blobs);
+				cr = scene.countVehicles();
+				
+				REQUIRE(cr.carRight == 1);
+				REQUIRE(cr.carLeft == 0);
+				REQUIRE(cr.truckRight == 0);
+				REQUIRE(cr.truckLeft == 0);
+			}
+		}
+
+		WHEN("vehicle has positive velocity and\n"
+			"width and height is larger than truck but\n"
+			"height is larger than truck") {
+			int vehicle_width = truck_width - 1;
+			int vehicle_height = truck_height + 5;
+			int velocity_x = 10; // moves from right to left
+			list<Track> tracks = createTrackBeforeCountPos(scene, vehicle_width,
+				vehicle_height, count_pos_x, velocity_x);
+		
+			// count pos not reached yet, but track length sufficient
+			cr = scene.countVehicles();
+			REQUIRE(cr.carRight == 0);
+			REQUIRE(tracks.front().getLength() > count_track_length);
+
+			THEN("carRight is counted") {
+				list<TrackEntry> blobs;
+				Rect vehicle = tracks.front().getActualEntry().rect();
+				vehicle.x += velocity_x;
+
+				// one more updateTracks() and count pos is passed over
+				blobs.push_back(TrackEntry(vehicle));
+				tracks = scene.updateTracks(blobs);
+				cr = scene.countVehicles();
+				
+				REQUIRE(cr.carRight == 1);
+				REQUIRE(cr.carLeft == 0);
+				REQUIRE(cr.truckRight == 0);
+				REQUIRE(cr.truckLeft == 0);
+			}
+		}
+
+	} // GIVEN("SceneTracker with one assigned track")
+} // SCENARIO("count vehicles", "[SceneTracker]")
+
+	// positive velocity
+	//  < count pos == not counted
+	//  > count pos == counted
+	// negative velocity
+	//  < count pos == counted
+	//  > count pos == not counted
+	// height >= truck, length < truck = car
+	// height >= truck, lenght >=truck = truck
