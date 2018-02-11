@@ -1,11 +1,8 @@
 #include "stdafx.h"
-#include "../../videoprocessing/include/tracker.h"
+#include "../../videoprocessing/include/config.h" // includes tracker.h
 
 using namespace std;
 using namespace cv;
-
-ostream& operator<<(ostream& out, vector<vector<double>> mat);
-ostream& operator<<(ostream& out, cv::Rect r);
 
 
 /******************************************************************************
@@ -18,22 +15,19 @@ TEST_CASE( "Centroid, positive bbox", "[TrackEntry]" ) {
 	REQUIRE(te.centroid().y == 150);
 }
 
-TEST_CASE( "Centroid, negative bbox", "[TrackEntry]" ) 
-{
+TEST_CASE( "Centroid, negative bbox", "[TrackEntry]" ) {
     TrackEntry te(-100, -100, -100, -100);
 	REQUIRE(te.centroid().x == 150);
 	REQUIRE(te.centroid().y == 150);
 }
 
-TEST_CASE( "use Rect contstructor", "[TrackEntry]" ) 
-{
+TEST_CASE( "use Rect contstructor", "[TrackEntry]" ) {
     TrackEntry te(Rect(100, 100, 100, 100));
 	REQUIRE(te.centroid().x == 150);
 	REQUIRE(te.centroid().y == 150);
 }
 
-TEST_CASE( "is size similar", "[TrackEntry]" ) 
-{ 
+TEST_CASE( "is size similar", "[TrackEntry]" ) { 
 	TrackEntry te(0, 0, 100, 100);
 
 	SECTION( "similar -> 10% larger is OK" ) {
@@ -46,8 +40,7 @@ TEST_CASE( "is size similar", "[TrackEntry]" )
 	}
 }
 
-TEST_CASE( "is close", "[TrackEntry]" ) 
-{ 
+TEST_CASE( "is close", "[TrackEntry]" ) { 
 	TrackEntry te(100, 100, 100, 100);
 
 	SECTION( "close -> distance smaller than 30" ) {
@@ -65,14 +58,12 @@ TEST_CASE( "is close", "[TrackEntry]" )
 /*** Track ********************************************************************
 /******************************************************************************/
 
-TEST_CASE( "ID", "[Track]" ) 
-{
+TEST_CASE( "ID", "[Track]" ) {
 	Track track(TrackEntry(0, 0, 100, 100), 1);
 	REQUIRE(track.getId() == 1);
 }
 
-TEST_CASE( "velocity", "[Track]" ) 
-{
+TEST_CASE( "velocity", "[Track]" ) {
 	Track track(TrackEntry(0, 0, 100, 100), 1);
 	REQUIRE(track.getActualEntry().rect() == cv::Rect(0, 0, 100, 100));
 	REQUIRE(track.getVelocity() == cv::Point2d(0, 0));
@@ -85,105 +76,86 @@ TEST_CASE( "velocity", "[Track]" )
 	REQUIRE(track.getActualEntry().rect() == cv::Rect(150, 0, 100, 100));
 	REQUIRE(track.getVelocity() == cv::Point2d(75, 0));
 
-	SECTION("substitute value")
-	{
+	SECTION("substitute value") {
 		track.addSubstitute();
 		REQUIRE(track.getActualEntry().rect() == cv::Rect(150+75, 0, 100, 100));	
 		REQUIRE(track.getVelocity() == cv::Point2d(75, 0)); 		// average velocity remains unchanged
 	}
 	// clip rect out of roi
-
 }
 
-TEST_CASE( "confidence increase", "[Track]" ) 
-{
+TEST_CASE( "confidence increase", "[Track]" ) {
+	Config config;
+	Config* pConfig = &config;
+	int max_conf = stoi(pConfig->getParam("track_max_confidence"));
+	int max_dev = stoi(pConfig->getParam("track_max_deviation"));
+	int max_dist = stoi(pConfig->getParam("track_max_distance"));
+
 	Track track(TrackEntry(0, 0, 100, 100), 1);
 	track.addTrackEntry(TrackEntry(50, 0, 100, 100));
 	track.addTrackEntry(TrackEntry(150, 0, 100, 100));
-	std::list<TrackEntry> blobs;
-	SECTION ("take closest")
-	{
+	list<TrackEntry> blobs;
+
+	SECTION ("take closest") {
 		blobs.push_back(TrackEntry(150+10, 0, 100, 100)); // closest, maxDist = 30
 		blobs.push_back(TrackEntry(150+20, 0, 100, 100));
 		REQUIRE(blobs.size() == 2);
-		track.updateTrack(blobs);
+		
+		track.updateTrack(blobs, max_conf, max_dev, max_dist);
 		REQUIRE(track.getActualEntry().rect() == cv::Rect(150+10, 0, 100, 100));
 		REQUIRE(blobs.size() == 1);
 		REQUIRE(track.getConfidence() == 1);
 	}
-	SECTION ("take similar")
-	{
+
+	SECTION ("take similar") {
 		blobs.push_back(TrackEntry(150, 0, 150, 100)); // shape similar, maxDeviation = 80%
 		blobs.push_back(TrackEntry(150, 0, 200, 100)); 
 		REQUIRE(blobs.size() == 2);
-		track.updateTrack(blobs);
+		
+		track.updateTrack(blobs, max_conf, max_dev, max_dist);
 		REQUIRE(track.getActualEntry().rect() == cv::Rect(150, 0, 150, 100));
 		REQUIRE(blobs.size() == 1);
 		REQUIRE(track.getConfidence() == 1);
 	}
 }
 
-SCENARIO("Track will be deleted, if confidence drops below zero", "[Track]")
-{
-	GIVEN("Track with 3 updated TrackEntries")
-	{
+SCENARIO("Track will be deleted, if confidence drops below zero", "[Track]") {
+	Config config;
+	Config* pConfig = &config;
+	int max_conf = stoi(pConfig->getParam("track_max_confidence"));
+	int max_dev = stoi(pConfig->getParam("track_max_deviation"));
+	int max_dist = stoi(pConfig->getParam("track_max_distance"));
+
+	GIVEN("Track with 3 updated TrackEntries") 	{
 		Track track(TrackEntry(0, 0, 100, 100), 1);		
-		std::list<TrackEntry> blobs;
+		list<TrackEntry> blobs;
 		blobs.push_back(TrackEntry(10, 0, 100, 100)); // closest, maxDist = 30
 		blobs.push_back(TrackEntry(30, 0, 100, 100));
 		blobs.push_back(TrackEntry(45, 0, 100, 100));
-		track.updateTrack(blobs);
-		track.updateTrack(blobs);
-		track.updateTrack(blobs);
+		track.updateTrack(blobs, max_conf, max_dev, max_dist);
+		track.updateTrack(blobs, max_conf, max_dev, max_dist);
+		track.updateTrack(blobs, max_conf, max_dev, max_dist);
+
 		REQUIRE(blobs.size() == 0);
 		REQUIRE(track.getConfidence() == 3);
 		REQUIRE(track.getActualEntry().rect() == cv::Rect(45, 0, 100, 100));
 		REQUIRE(track.getVelocity() == cv::Point2d(15, 0));
-		WHEN("Substitute calculated 3 times")
-		{
+		
+		WHEN("Substitute calculated 3 times") {
 			blobs.push_back(TrackEntry(130, 0, 100, 100)); // too far >> 45(bbox.x) + 3(updates) * 15(actVelocity) + 30(maxDist) = 120
 			REQUIRE(track.isMarkedForDelete() == false);
-			track.updateTrack(blobs);
-			track.updateTrack(blobs);
-			track.updateTrack(blobs);
+			track.updateTrack(blobs, max_conf, max_dev, max_dist);
+			track.updateTrack(blobs, max_conf, max_dev, max_dist);
+			track.updateTrack(blobs, max_conf, max_dev, max_dist);
 			REQUIRE(track.getConfidence() == 0);	
 			REQUIRE(track.isMarkedForDelete() == true);
 		}
+
+		WHEN("setCounted(true) -> isCounted == true") {
+			track.setCounted(true);
+			REQUIRE(track.isCounted() == true);
+			track.setCounted(false);
+			REQUIRE(track.isCounted() == false);
+		}
 	}
-}
-
-
-
-
-ostream& operator<<(ostream& out, cv::Rect r)
-{
-	out << "Rect x=" << r.x << " y=" << r.y << " width=" << r.width << " height=" << r.height << endl;
-	return out;
-}
-
-ostream& operator<<(ostream& out, vector<vector<double>> mat)
-{
-	for (unsigned int i = 0; i < mat.size(); i++)
-	{
-		out << "row " << i << " "; 
-		for (unsigned int n = 0; n < mat[i].size(); n++)
-			out << mat[i][n] << ", ";
-		out << endl;
-	}
-	return out; 
-}
-
-void PrintShapes(list<TrackEntry>& Shapes)
-{
-	// print bbox of new shapes
-	cout << endl << "List of new shapes" << endl;
-	list<TrackEntry>::iterator ns = Shapes.begin();
-	int i = 0;
-	while (ns != Shapes.end()) 
-	{
-		i++;
-		cout << i << "  [" << ns->rect().x << ", " << ns->rect().y << ", " << ns->rect().width << ", " << ns->rect().height << "]" << endl;
-		++ns;
-	}// end for all new shapes
-	return;
 }
