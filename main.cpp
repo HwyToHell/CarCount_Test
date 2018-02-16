@@ -4,9 +4,11 @@
 using namespace std;
 
 
-int main(int argc, char* argv[])
-{
-	int result = Catch::Session().run( argc, argv );
+int main(int argc, char* argv[]){
+
+	int result = Catch::Session().run(argc, argv);
+
+
 	
 	cout << "Press <enter> to continue" << endl;
 

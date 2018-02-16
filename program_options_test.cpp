@@ -9,7 +9,7 @@ int mapSize_test(ProgramOptions& opts) {
 	return opts.mOptMap.size(); 
 }
 
-SCENARIO("Parse command line options", "[Config]")
+SCENARIO("general option parsing", "[ProgramOptions]")
 {
 	GIVEN("command line with 1 short and 2 long options") {
 		// create argc from argv
@@ -111,4 +111,67 @@ SCENARIO("Parse command line options", "[Config]")
 			}
 		}	
 	}
-}
+} // end SCENARIO("general option parsing", "[ProgramOptions]")
+
+SCENARIO("video specific option parsing", "[ProgramOptions]") {
+	GIVEN("command line with 4 opt args for extended options") {
+		// arguments
+		//  i(nput): cam (single digit number) or file name,
+		//		if empty take standard cam
+		//  r(ate):	fps for video device
+		//  v(ideo size): frame size in px (width x height)
+		//  w(orking directory): working dir, starting in $home
+		char* optstr = "i:r:v:w:";
+		char* iOptArg = "videofile.mp4";
+		char* vOptArg = "320x240";
+		char* wOptArg = "workdir";
+		
+		// TODO add addtional test cases:
+		//  working dir with /, without /
+		WHEN("all opt args are passed") {
+			char* av[] = {"progname", "-i", iOptArg, "-v", vOptArg, "-w", wOptArg};
+			int ac = (sizeof(av)/sizeof(av[0]));	
+			ProgramOptions po(ac, av, optstr);
+
+			THEN("they are returnd via getOptArg()") {
+				REQUIRE(po.exists('i') == true);
+				REQUIRE(po.getOptArg('i') == string(iOptArg));
+			
+				REQUIRE(po.exists('v') == true);
+				REQUIRE(po.getOptArg('v') == string(vOptArg));
+
+				REQUIRE(po.exists('w') == true);
+				REQUIRE(po.getOptArg('w') == string(wOptArg));
+			}
+		}
+
+		WHEN("input option is empty") {
+			char* av[] = {"progname", "-i"};
+			int ac = (sizeof(av)/sizeof(av[0]));	
+			ProgramOptions po(ac, av, optstr);
+
+			THEN("getOptArg() returns empty string and other opts don't exist") {
+				REQUIRE(po.exists('i') == true);
+				REQUIRE(po.getOptArg('i') == "");
+			
+				REQUIRE(po.exists('v') == false);
+				REQUIRE(po.exists('w') == false);
+			}
+		}
+
+		WHEN("same option is used multiple times") {
+			char* av[] = {"progname", "-i", iOptArg, "-i", vOptArg};
+			int ac = (sizeof(av)/sizeof(av[0]));	
+			ProgramOptions po(ac, av, optstr);
+
+			THEN("first (leftmost) option is taken, the others are ignored") {
+				REQUIRE(po.exists('i') == true);
+				REQUIRE(po.getOptArg('i') == string(iOptArg));
+				
+				// others don't exist
+				REQUIRE(po.exists('v') == false);
+				REQUIRE(po.exists('w') == false);
+			}
+		}
+	} // end GIVEN("command line with 4 opt args for extended options") 
+} // end SCENARIO("video specific option parsing", "[ProgramOptions]") 

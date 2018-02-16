@@ -121,8 +121,8 @@ SCENARIO("update tracks", "[SceneTracker]") {
 				REQUIRE(cr.truckLeft == 1);
 			}
 		}
-	} // GIVEN("SceneTracker with two Tracks and nUpdates")
-} // SCENARIO("update tracks", "[SceneTracker]")
+	} // end GIVEN("SceneTracker with two Tracks and nUpdates")
+} // end SCENARIO("update tracks", "[SceneTracker]")
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -295,15 +295,5 @@ SCENARIO("count vehicles", "[SceneTracker]") {
 				REQUIRE(cr.truckLeft == 0);
 			}
 		}
-
-	} // GIVEN("SceneTracker with one assigned track")
-} // SCENARIO("count vehicles", "[SceneTracker]")
-
-	// positive velocity
-	//  < count pos == not counted
-	//  > count pos == counted
-	// negative velocity
-	//  < count pos == counted
-	//  > count pos == not counted
-	// height >= truck, length < truck = car
-	// height >= truck, lenght >=truck = truck
+	} // end GIVEN("SceneTracker with one assigned track")
+} // end SCENARIO("count vehicles", "[SceneTracker]")

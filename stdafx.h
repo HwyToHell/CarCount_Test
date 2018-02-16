@@ -10,7 +10,7 @@
 #include <cmath>
 #include <string>
 #include <list>
-#include <direct.h> // for _mkdir
+//#include <direct.h> // for _mkdir
 #include <sqlite3.h>
 #include <catch.hpp>
 
