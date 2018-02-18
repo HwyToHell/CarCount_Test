@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <map>
 #include "../../videoprocessing/include/config.h" // includes tracker.h
 #include "../../../cpp/inc/program_options.h"
 //#include <sys/stat.h> TODO for Unix
@@ -206,3 +207,94 @@ SCENARIO("save command line args in config", "[Config]") {
 	} // end GIVEN("args for working directory -w")
 
 } // end SCENARIO("save command line args in config", "[Config]")
+
+
+SCENARIO("adjust video size dependent parameters", "[Config]") {
+	GIVEN("dependent parameter list, new video size") {
+		Config config;
+		
+		// create map with test values
+		typedef pair<const string, int> TPairStr;
+		map<TPairStr::first_type, TPairStr::second_type> depParams;
+		
+		const int old_size_x = 320;
+		const int old_size_y = 240;
+		depParams.insert(TPairStr("framesize_x", old_size_x));
+		depParams.insert(TPairStr("framesize_y", old_size_y));
+		int new_size_x = 640;
+		int new_size_y = 480;
+		
+		const int intToAdjust = 100;		
+		depParams.insert(TPairStr("roi_x", intToAdjust));
+		depParams.insert(TPairStr("roi_width", intToAdjust));
+		depParams.insert(TPairStr("roi_y", intToAdjust));
+		depParams.insert(TPairStr("roi_height", intToAdjust));
+
+		depParams.insert(TPairStr("blob_area_min", intToAdjust));
+		depParams.insert(TPairStr("blob_area_max", intToAdjust));		
+		depParams.insert(TPairStr("track_max_distance", intToAdjust));
+
+		depParams.insert(TPairStr("count_pos_x", intToAdjust));
+		depParams.insert(TPairStr("count_track_length", intToAdjust));
+		depParams.insert(TPairStr("truck_width_min", intToAdjust));		
+		depParams.insert(TPairStr("truck_height_min", intToAdjust));
+
+		class SetCfgParam {
+			Config* m_cfg;
+		public:
+			SetCfgParam(Config* cfg) : m_cfg(cfg) {}
+			void operator()(TPairStr& param) {
+				m_cfg->setParam(param.first, to_string((long long)param.second));
+			}
+		};
+
+		// copy test values to config
+		for_each(depParams.begin(), depParams.end(), SetCfgParam(&config));
+		
+		WHEN("parameters are adjusted") {
+			config.adjustFrameSizeDependentParams(new_size_x, new_size_y);
+
+			THEN("getParam() shows adjusted values") {
+				// dependent on x
+				REQUIRE( depParams.at("roi_x") * new_size_x / old_size_x 
+					== stoi(config.getParam("roi_x")) );
+				REQUIRE( depParams.at("roi_width") * new_size_x / old_size_x 
+					== stoi(config.getParam("roi_width")) );
+				REQUIRE( depParams.at("count_pos_x") * new_size_x / old_size_x 
+					== stoi(config.getParam("count_pos_x")) );
+				REQUIRE( depParams.at("count_track_length") * new_size_x / old_size_x 
+					== stoi(config.getParam("count_track_length")) );
+				REQUIRE( depParams.at("truck_width_min") * new_size_x / old_size_x 
+					== stoi(config.getParam("truck_width_min")) );
+				
+				// dependent on y
+				REQUIRE( depParams.at("roi_y") * new_size_y / old_size_y 
+					== stoi(config.getParam("roi_y")) );
+				REQUIRE( depParams.at("roi_height") * new_size_y / old_size_y 
+					== stoi(config.getParam("roi_height")) );
+				REQUIRE( depParams.at("truck_height_min") * new_size_y / old_size_y 
+					== stoi(config.getParam("truck_height_min")) );
+
+				// dependent on (x + y) / 2
+				REQUIRE( depParams.at("track_max_distance") 
+					* (new_size_x /  old_size_x + new_size_y / old_size_y) / 2
+					== stoi(config.getParam("track_max_distance")) );
+
+				// dependent on x * y
+				REQUIRE( depParams.at("blob_area_min") 
+					* new_size_x /  old_size_x * new_size_y / old_size_y
+					== stoi(config.getParam("blob_area_min")) );
+				REQUIRE( depParams.at("blob_area_max") 
+					* new_size_x /  old_size_x * new_size_y / old_size_y
+					== stoi(config.getParam("blob_area_max")) );
+
+				//new video size
+				REQUIRE( new_size_x == stoi(config.getParam("framesize_x")) );
+				REQUIRE( new_size_y == stoi(config.getParam("framesize_y")) );
+			}
+			
+		}
+
+
+	} 
+} // end SCENARIO("adjust video size dependent parameters", "[Config]")
