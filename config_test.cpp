@@ -99,30 +99,6 @@ SCENARIO("#cfg001 Config::Config", "[Config]") {
 		// check application_path existence
 		// check other parameters for != ""
 		WHEN("config is constructed") {
-			string params[] = { "application_path",
-								"video_file_path",
-								"is_video_from_cam",
-								"cam_device_ID",
-								"cam_resolution_ID",
-								"cam_fps",
-								"frame_size_x",
-								"frame_size_y",
-								"roi_x",
-								"roi_y",
-								"roi_width",
-								"roi_height",
-								"blob_area_min",
-								"blob_area_max",
-								"track_max_confidence",
-								"track_max_deviation",
-								"track_max_distance",
-								"max_n_of_tracks",
-								"count_confidence",
-								"count_pos_x", 
-								"count_track_length",
-								"truck_width_min",
-								"truck_height_min"};
-
 			THEN("application_path is set") {
 				string appPath = getHomePath();
 				appendDirToPath(appPath, "counter");
@@ -130,9 +106,9 @@ SCENARIO("#cfg001 Config::Config", "[Config]") {
 				REQUIRE(isFileExist(appPath));
 			}
 			AND_THEN("all other parameters return valid string values") {
-				size_t nParams = sizeof(params) / sizeof(params[0]);
-				for (size_t i = 0; i < nParams; ++i) {
-					string name = params[i];
+				size_t nParams = sizeof(configParams) / sizeof(configParams[0]);
+				for (size_t n = 0; n < nParams; ++n) {
+					string name = configParams[n];
 					string value = config.getParam(name);
 					REQUIRE(value != "");
 				}
@@ -285,68 +261,99 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 				REQUIRE(config.readCmdLine(po) == false);
 			}
 		}
-	}
-
-
-	/*
-	GIVEN("args for video frame size -v") {
-		string vFrameSize_x("320");
-		string vFrameSize_y("240");
-		Config config;
-		// quiet must be specified in order to avoid readCmdLine to return false
-
-		WHEN("v: video size correctly specified") {
-			string frameSize_OK(vFrameSize_x + "x" + vFrameSize_y);
-			char* av[] = {"progname", "-v", (char*)frameSize_OK.c_str()};
-			int ac = (sizeof(av)/sizeof(av[0]));	
-			ProgramOptions po(ac, av, optstr);
-			
-			THEN("config returns video width and video height") {
-				REQUIRE(config.readCmdLine(po) == true);
-				REQUIRE(vFrameSize_x == config.getParam("framesize_x"));
-				REQUIRE(vFrameSize_y == config.getParam("framesize_y"));
-			}
-		}
-
-		WHEN("v: video size misses width") {
-			string missingWidth("x" + vFrameSize_y);
-			char* av[] = {"progname", "-v", (char*)missingWidth.c_str()};
-			int ac = (sizeof(av)/sizeof(av[0]));	
-			ProgramOptions po(ac, av, optstr);
-			
-			THEN("readCmdLine returns false") {
-				REQUIRE(config.readCmdLine(po) == false);
-			}
-		}
-
-		WHEN("v: video size misses height") {
-			string missingHeight(vFrameSize_x + "x");
-			char* av[] = {"progname", "-v", (char*)missingHeight.c_str()};
-			int ac = (sizeof(av)/sizeof(av[0]));	
-			ProgramOptions po(ac, av, optstr);
-			
-			THEN("readCmdLine returns false") {
-				REQUIRE(config.readCmdLine(po) == false);
-			}
-		}
-
-		WHEN("v: video size missing completely") {
-			char* av[] = {"progname", "-v", ""};
-			int ac = (sizeof(av)/sizeof(av[0]));	
-			ProgramOptions po(ac, av, optstr);
-			
-			THEN("readCmdLine returns false") {
-				REQUIRE(config.readCmdLine(po) == false);
-			}
-		}
-
-	} // end GIVEN("args for video frame size -v")
-	*/
-
+	} // end GIVEN("args for cam resolution ID -v")
 } // end SCENARIO("save command line args in config", "[Config]")
 
+// config file path for test case #cfg004
+// module global in order to delete 
+static string cfg004_FilePath;
+SCENARIO("#cfg004 Config::saveConfigToFile and read back", "[Config]") {
+	GIVEN("good parameter list with test value") {
+		Config config;
+		cfg004_FilePath = config.getParam("application_path");
+		appendDirToPath(cfg004_FilePath, "test.sqlite");
+		
+		// 1 st pass: config file does not exist
+		WHEN("test values are transferred to config") {
+			string testValue("999");
+			size_t nParams = sizeof(configParams) / sizeof(configParams[0]);
+			for (size_t n = 0; n < nParams; ++n) {
+				REQUIRE(config.setParam(configParams[n], testValue));
+			}
+			THEN("test values are saved in config file") {
+				REQUIRE(config.saveConfigToFile(cfg004_FilePath));
+			}
+			AND_THEN("same test values are read back from config file") {
+				REQUIRE(config.readConfigFile(cfg004_FilePath));
+				for (size_t n = 0; n < nParams; ++n) {
+					REQUIRE(config.getParam(configParams[n]) == testValue);
+				}
+			}
+		}
 
-SCENARIO("adjust video size dependent parameters", "[Config]") {
+		// 2nd pass: config file does exist
+		WHEN("config file exists and second test values are transferred to config") {
+			string testValue2nd("222");
+			size_t nParams = sizeof(configParams) / sizeof(configParams[0]);
+			for (size_t n = 0; n < nParams; ++n) {
+				REQUIRE(config.setParam(configParams[n], testValue2nd));
+			}
+			THEN("test values are saved in config file") {
+				REQUIRE(config.saveConfigToFile(cfg004_FilePath));
+			}
+			AND_THEN("same test values are read back from config file") {
+				REQUIRE(config.readConfigFile(cfg004_FilePath));
+				for (size_t n = 0; n < nParams; ++n) {
+					REQUIRE(config.getParam(configParams[n]) == testValue2nd);
+				}
+			}
+		}
+	} // ~Config -> db is closed
+
+	// tear down
+	WHEN("tests are passed, config file #004 can deleted") {
+		REQUIRE(remove(cfg004_FilePath.c_str()) == 0);
+	}
+} // end SCENARIO("#cfg004 Config::saveConfigToFile and read back", "[Config]")
+
+
+static string cfg003_FilePath;
+SCENARIO("#cfg003 Config::readConfigFromFile", "[Config]") {
+	GIVEN("good config and config file") {
+		Config config;
+		cfg003_FilePath = config.getParam("application_path");
+		appendDirToPath(cfg003_FilePath, "delete.sqlite");
+		REQUIRE(config.saveConfigToFile(cfg003_FilePath));
+
+		// TODO after refactoring queryDbxxx() functions into separate class
+		//	delete one data record, so that config file contains wrong number of parameters
+		WHEN("config file contains wrong number of parameters") {
+			THEN("reading config file fails") {
+				;// TODO implementation
+			}
+		}
+
+		WHEN("config file does not exist") {
+			// make sure file does not exist
+			string fileNotExistent = config.getParam("application_path");
+			appendDirToPath(fileNotExistent, "not_existent.sqlite");
+			REQUIRE(isFileExist(fileNotExistent) == false);
+
+			THEN("reading config file fails") {
+				REQUIRE(false == config.readConfigFile(fileNotExistent));
+			}
+		}
+	}
+
+	// tear down
+	WHEN("tests are passed, config file #003 can deleted") {
+		REQUIRE(remove(cfg003_FilePath.c_str()) == 0);
+	}
+
+} // end SCENARIO("#cfg003 Config::readConfigFromFile", "[Config]")
+
+				
+SCENARIO("#cfg005 adjust video size dependent parameters", "[Config]") {
 	GIVEN("dependent parameter list, new video size") {
 		Config config;
 		
