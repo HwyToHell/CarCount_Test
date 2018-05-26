@@ -9,11 +9,6 @@
 using namespace std;
 
 
-/// TODO test directory manipulation functions
-// appendDirToPath: dir + path with and w/o delimiter
-// isFileExist:		check for file and directory, nonexistent, no access, ... 
-
-
 SCENARIO("#dir001 getHomePath", "[Config]") {
 	#if defined (_WIN32)
 	char delim = '\\';
@@ -129,7 +124,7 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 	char* optstr = "i:qr:v:w:";
 
 	GIVEN("args for video input -i") {
-		char* iFile_OK = "D:\\Users\\Holger\\counter\\traffic640x480.avi";
+		char* iFile_OK = "traffic320x240.avi";
 		char* iCam_OK = "9";
 		char* iCam_Wrong = "a";
 		
@@ -178,7 +173,7 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 			
 			THEN("config returns file name, from_cam flag == false") {
 				REQUIRE(config.readCmdLine(po) == true);
-				string vidFile = config.getParam("video_file_path");
+				string vidFile = config.getParam("video_file");
 				string fromCam = config.getParam("is_video_from_cam");
 				REQUIRE(vidFile == string(iFile_OK)); 
 				REQUIRE(fromCam == "false"); 
@@ -270,7 +265,8 @@ static string cfg004_FilePath;
 SCENARIO("#cfg004 Config::saveConfigToFile and read back", "[Config]") {
 	GIVEN("good parameter list with test value") {
 		Config config;
-		cfg004_FilePath = config.getParam("application_path");
+		string appPath = config.getParam("application_path");
+		cfg004_FilePath = appPath;
 		appendDirToPath(cfg004_FilePath, "test.sqlite");
 		
 		// 1 st pass: config file does not exist
@@ -280,12 +276,20 @@ SCENARIO("#cfg004 Config::saveConfigToFile and read back", "[Config]") {
 			for (size_t n = 0; n < nParams; ++n) {
 				REQUIRE(config.setParam(configParams[n], testValue));
 			}
-			THEN("test values are saved in config file") {
-				REQUIRE(config.saveConfigToFile(cfg004_FilePath));
-			}
-			AND_THEN("same test values are read back from config file") {
-				REQUIRE(config.readConfigFile(cfg004_FilePath));
+
+			THEN("test values are saved in config file and same values are read back") {
+				REQUIRE(true == config.saveConfigToFile(cfg004_FilePath));
+				
+				// set all parameters back to 0
 				for (size_t n = 0; n < nParams; ++n) {
+					REQUIRE(config.setParam(configParams[n], "000"));
+				}
+
+				REQUIRE(true == config.readConfigFile(cfg004_FilePath));
+				
+				// first parameter must be application_path
+				REQUIRE(config.getParam(configParams[0]) == appPath);
+				for (size_t n = 1; n < nParams; ++n) {
 					REQUIRE(config.getParam(configParams[n]) == testValue);
 				}
 			}
@@ -293,19 +297,22 @@ SCENARIO("#cfg004 Config::saveConfigToFile and read back", "[Config]") {
 
 		// 2nd pass: config file does exist
 		WHEN("config file exists and second test values are transferred to config") {
+			REQUIRE(true == isFileExist(cfg004_FilePath));
 			string testValue2nd("222");
 			size_t nParams = sizeof(configParams) / sizeof(configParams[0]);
 			for (size_t n = 0; n < nParams; ++n) {
 				REQUIRE(config.setParam(configParams[n], testValue2nd));
 			}
+
 			THEN("test values are saved in config file") {
 				REQUIRE(config.saveConfigToFile(cfg004_FilePath));
 			}
 			AND_THEN("same test values are read back from config file") {
 				REQUIRE(config.readConfigFile(cfg004_FilePath));
-				for (size_t n = 0; n < nParams; ++n) {
+				for (size_t n = 1; n < nParams; ++n) {
 					REQUIRE(config.getParam(configParams[n]) == testValue2nd);
 				}
+
 			}
 		}
 	} // ~Config -> db is closed
@@ -318,9 +325,15 @@ SCENARIO("#cfg004 Config::saveConfigToFile and read back", "[Config]") {
 
 
 static string cfg003_FilePath;
+static string std_config_file;
 SCENARIO("#cfg003 Config::readConfigFromFile", "[Config]") {
 	GIVEN("good config and config file") {
 		Config config;
+		// standard config file, created in any case when config is instantiated
+		std_config_file = config.getParam("application_path");
+		appendDirToPath(std_config_file, "config.sqlite");
+
+		// separate config file
 		cfg003_FilePath = config.getParam("application_path");
 		appendDirToPath(cfg003_FilePath, "delete.sqlite");
 		REQUIRE(config.saveConfigToFile(cfg003_FilePath));
@@ -346,99 +359,9 @@ SCENARIO("#cfg003 Config::readConfigFromFile", "[Config]") {
 	}
 
 	// tear down
-	WHEN("tests are passed, config file #003 can deleted") {
+	WHEN("tests are passed, config file #003 and std_config_file can deleted") {
 		REQUIRE(remove(cfg003_FilePath.c_str()) == 0);
+		REQUIRE(remove(std_config_file.c_str()) == 0);
 	}
 
 } // end SCENARIO("#cfg003 Config::readConfigFromFile", "[Config]")
-
-				
-SCENARIO("#cfg005 adjust video size dependent parameters", "[Config]") {
-	GIVEN("dependent parameter list, new video size") {
-		Config config;
-		
-		// create map with test values
-		typedef pair<const string, int> TPairStr;
-		map<TPairStr::first_type, TPairStr::second_type> depParams;
-		
-		const int old_size_x = 320;
-		const int old_size_y = 240;
-		depParams.insert(TPairStr("framesize_x", old_size_x));
-		depParams.insert(TPairStr("framesize_y", old_size_y));
-		int new_size_x = 640;
-		int new_size_y = 480;
-		
-		const int intToAdjust = 100;		
-		depParams.insert(TPairStr("roi_x", intToAdjust));
-		depParams.insert(TPairStr("roi_width", intToAdjust));
-		depParams.insert(TPairStr("roi_y", intToAdjust));
-		depParams.insert(TPairStr("roi_height", intToAdjust));
-
-		depParams.insert(TPairStr("blob_area_min", intToAdjust));
-		depParams.insert(TPairStr("blob_area_max", intToAdjust));		
-		depParams.insert(TPairStr("track_max_distance", intToAdjust));
-
-		depParams.insert(TPairStr("count_pos_x", intToAdjust));
-		depParams.insert(TPairStr("count_track_length", intToAdjust));
-		depParams.insert(TPairStr("truck_width_min", intToAdjust));		
-		depParams.insert(TPairStr("truck_height_min", intToAdjust));
-
-		class SetCfgParam {
-			Config* m_cfg;
-		public:
-			SetCfgParam(Config* cfg) : m_cfg(cfg) {}
-			void operator()(TPairStr& param) {
-				m_cfg->setParam(param.first, to_string((long long)param.second));
-			}
-		};
-
-		// copy test values to config
-		for_each(depParams.begin(), depParams.end(), SetCfgParam(&config));
-		
-		WHEN("parameters are adjusted") {
-			config.adjustFrameSizeDependentParams(new_size_x, new_size_y);
-
-			THEN("getParam() shows adjusted values") {
-				// dependent on x
-				REQUIRE( depParams.at("roi_x") * new_size_x / old_size_x 
-					== stoi(config.getParam("roi_x")) );
-				REQUIRE( depParams.at("roi_width") * new_size_x / old_size_x 
-					== stoi(config.getParam("roi_width")) );
-				REQUIRE( depParams.at("count_pos_x") * new_size_x / old_size_x 
-					== stoi(config.getParam("count_pos_x")) );
-				REQUIRE( depParams.at("count_track_length") * new_size_x / old_size_x 
-					== stoi(config.getParam("count_track_length")) );
-				REQUIRE( depParams.at("truck_width_min") * new_size_x / old_size_x 
-					== stoi(config.getParam("truck_width_min")) );
-				
-				// dependent on y
-				REQUIRE( depParams.at("roi_y") * new_size_y / old_size_y 
-					== stoi(config.getParam("roi_y")) );
-				REQUIRE( depParams.at("roi_height") * new_size_y / old_size_y 
-					== stoi(config.getParam("roi_height")) );
-				REQUIRE( depParams.at("truck_height_min") * new_size_y / old_size_y 
-					== stoi(config.getParam("truck_height_min")) );
-
-				// dependent on (x + y) / 2
-				REQUIRE( depParams.at("track_max_distance") 
-					* (new_size_x /  old_size_x + new_size_y / old_size_y) / 2
-					== stoi(config.getParam("track_max_distance")) );
-
-				// dependent on x * y
-				REQUIRE( depParams.at("blob_area_min") 
-					* new_size_x /  old_size_x * new_size_y / old_size_y
-					== stoi(config.getParam("blob_area_min")) );
-				REQUIRE( depParams.at("blob_area_max") 
-					* new_size_x /  old_size_x * new_size_y / old_size_y
-					== stoi(config.getParam("blob_area_max")) );
-
-				//new video size
-				REQUIRE( new_size_x == stoi(config.getParam("frame_size_x")) );
-				REQUIRE( new_size_y == stoi(config.getParam("frame_size_y")) );
-			}
-			
-		}
-
-
-	} 
-} // end SCENARIO("adjust video size dependent parameters", "[Config]")
