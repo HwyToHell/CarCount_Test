@@ -288,9 +288,15 @@ SCENARIO("#cfg004 Config::saveConfigToFile and read back", "[Config]") {
 				REQUIRE(true == config.readConfigFile(cfg004_FilePath));
 				
 				// first parameter must be application_path
-				REQUIRE(config.getParam(configParams[0]) == appPath);
-				for (size_t n = 1; n < nParams; ++n) {
-					REQUIRE(config.getParam(configParams[n]) == testValue);
+
+				for (size_t n = 0; n < nParams; ++n) {
+					int result = strcmp(configParams[n], "application_path");
+					// parameter "application_path" contains "appPath" -> set in Config::init()
+					if (result == 0) 
+						REQUIRE(config.getParam(configParams[0]) == appPath);
+					// all other parameters contain "testValue"
+					else 
+						REQUIRE(config.getParam(configParams[n]) == testValue);
 				}
 			}
 		}
@@ -309,8 +315,11 @@ SCENARIO("#cfg004 Config::saveConfigToFile and read back", "[Config]") {
 			}
 			AND_THEN("same test values are read back from config file") {
 				REQUIRE(config.readConfigFile(cfg004_FilePath));
-				for (size_t n = 1; n < nParams; ++n) {
-					REQUIRE(config.getParam(configParams[n]) == testValue2nd);
+				for (size_t n = 0; n < nParams; ++n) {
+					int result = strcmp(configParams[n], "application_path");
+					// parameter "application_path" contains "appPath" -> skip it
+					if (result != 0)
+						REQUIRE(config.getParam(configParams[n]) == testValue2nd);
 				}
 
 			}
