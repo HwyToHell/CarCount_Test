@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "../../../cpp/inc/program_options.h"
+#include "../../cpp/inc/program_options.h"
 
 
 using namespace std;
@@ -13,7 +13,7 @@ SCENARIO("general option parsing", "[ProgramOptions]")
 {
 	GIVEN("command line with 1 short and 2 long options") {
 		// create argc from argv
-		char* argv_[] = { "progname", "-v", "videoinput", "-c", "-o", "filename", "d" };
+        const char* argv_[] = { "progname", "-v", "videoinput", "-c", "-o", "filename", "d" };
 		int argc_ = (sizeof(argv_)/sizeof(argv_[0]));		
 		ProgramOptions cmdlnOpts(argc_, argv_, "co:v:");
 		WHEN("command line is parsed")
@@ -34,7 +34,7 @@ SCENARIO("general option parsing", "[ProgramOptions]")
 
 	GIVEN("command line with no options") {
 		// create argc from argv
-		char* argv_[] = { "progname" };
+        const char* argv_[] = { "progname" };
 		int argc_ = (sizeof(argv_)/sizeof(argv_[0]));	
 		ProgramOptions cmdlnOpts(argc_, argv_, "co:v:");
 		WHEN("command line is parsed") {
@@ -46,7 +46,7 @@ SCENARIO("general option parsing", "[ProgramOptions]")
 
 	GIVEN("command line with wrong options") {
 		// create argc from argv
-		char* argv_[] = { "progname", "a", "--c", "--o", "filename", "v" };
+        const char* argv_[] = { "progname", "a", "--c", "--o", "filename", "v" };
 		int argc_ = (sizeof(argv_)/sizeof(argv_[0]));		
 		ProgramOptions cmdlnOpts(argc_, argv_, "co:v:");
 		WHEN("command line is parsed")
@@ -65,7 +65,7 @@ SCENARIO("general option parsing", "[ProgramOptions]")
 
 	GIVEN("command line with extended option and no optional arguments") {
 		// create argc from argv
-		char* argv_[] = { "progname", "-o", "-c", "-v" };
+        const char* argv_[] = { "progname", "-o", "-c", "-v" };
 		int argc_ = (sizeof(argv_)/sizeof(argv_[0]));		
 		ProgramOptions cmdlnOpts(argc_, argv_, "co:v:");
 		WHEN("command line is parsed")
@@ -90,7 +90,7 @@ SCENARIO("general option parsing", "[ProgramOptions]")
 
 	GIVEN("command line with multiple occurances of the same option") {
 		// create argc from argv
-		char* argv_[] = { "progname", "-v", "firstOptArg", "-v", "secondOptArg", 
+        const char* argv_[] = { "progname", "-v", "firstOptArg", "-v", "secondOptArg",
 			"-o", "-c" };
 		int argc_ = (sizeof(argv_)/sizeof(argv_[0]));		
 		ProgramOptions cmdlnOpts(argc_, argv_, "co:v:");
@@ -121,15 +121,15 @@ SCENARIO("video specific option parsing", "[ProgramOptions]") {
 		//  r(ate):	fps for video device
 		//  v(ideo size): frame size in px (width x height)
 		//  w(orking directory): working dir, starting in $home
-		char* optstr = "i:r:v:w:";
-		char* iOptArg = "videofile.mp4";
-		char* vOptArg = "320x240";
-		char* wOptArg = "workdir";
+        const char* optstr = "i:r:v:w:";
+        const char* iOptArg = "videofile.mp4";
+        const char* vOptArg = "320x240";
+        const char* wOptArg = "workdir";
 		
 		// TODO add addtional test cases:
 		//  working dir with /, without /
 		WHEN("all opt args are passed") {
-			char* av[] = {"progname", "-i", iOptArg, "-v", vOptArg, "-w", wOptArg};
+            const char* av[] = {"progname", "-i", iOptArg, "-v", vOptArg, "-w", wOptArg};
 			int ac = (sizeof(av)/sizeof(av[0]));	
 			ProgramOptions po(ac, av, optstr);
 
@@ -146,7 +146,7 @@ SCENARIO("video specific option parsing", "[ProgramOptions]") {
 		}
 
 		WHEN("input option is empty") {
-			char* av[] = {"progname", "-i"};
+            const char* av[] = {"progname", "-i"};
 			int ac = (sizeof(av)/sizeof(av[0]));	
 			ProgramOptions po(ac, av, optstr);
 
@@ -160,7 +160,7 @@ SCENARIO("video specific option parsing", "[ProgramOptions]") {
 		}
 
 		WHEN("same option is used multiple times") {
-			char* av[] = {"progname", "-i", iOptArg, "-i", vOptArg};
+            const char* av[] = {"progname", "-i", iOptArg, "-i", vOptArg};
 			int ac = (sizeof(av)/sizeof(av[0]));	
 			ProgramOptions po(ac, av, optstr);
 

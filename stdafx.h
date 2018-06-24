@@ -4,15 +4,18 @@
 //
 
 #pragma once
-#include <opencv2/opencv.hpp>
-#include <windows.h>
-#include <iostream>
-#include <cmath>
-#include <string>
-#include <list>
+#if defined (_WIN32)
 #include <direct.h> // for _mkdir, _getcwd
-#include <sqlite3.h>
+#include <windows.h>
+#else
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+#include <cmath>
+#include <iostream>
+#include <list>
+#include <string>
+
 #include <catch.hpp>
-
-
-// TODO: reference additional headers your program requires here
+#include <opencv2/opencv.hpp>
+#include <sqlite3.h>

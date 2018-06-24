@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "../../videoprocessing/include/config.h" // includes tracker.h
+#include "../../CarCount/include/config.h" // includes tracker.h
 
 using namespace std;
 using namespace cv;
@@ -13,9 +13,8 @@ SCENARIO("get and return trackIDs", "[SceneTracker]") {
 		Config* pConfig = &config;
 		SceneTracker scene(pConfig);
 		WHEN("trackID is pulled 9 times") {
-			int id[9];
 			for (int i = 0; i < 9; ++i)
-				id[i] = scene.nextTrackID();
+                scene.nextTrackID();
 			THEN("next trackid is 0")
 				REQUIRE(scene.nextTrackID() == 0);
 			AND_THEN("trackID is returned 9 times") {
@@ -55,7 +54,7 @@ SCENARIO("update tracks", "[SceneTracker]") {
 		int car_width = truck_width -1;
 		int car_height = truck_height -1;
 		int car_vel_x = 8;// moves from left to right
-		int car_track_length = abs(nUpdates * car_vel_x);
+        //int car_track_length = abs(nUpdates * car_vel_x);
 		int car_org_x = 0;
 
 		int max_confidence = stoi(pConfig->getParam("track_max_confidence"));
@@ -66,7 +65,7 @@ SCENARIO("update tracks", "[SceneTracker]") {
 		scene.update();
 
 		list<TrackEntry> blobs;
-		list<Track> tracks;
+        list<Track>* tracks;
 		for (int i = 0; i <= nUpdates; ++i) {
 			// car
 			blobs.push_back(TrackEntry(car_org_x + i * car_vel_x, 0, car_width, car_height));
@@ -79,10 +78,10 @@ SCENARIO("update tracks", "[SceneTracker]") {
 
 		WHEN("nUpdates are complete") {
 			THEN("two tracks with high confidence are present") {
-				REQUIRE(tracks.size() == 2); 
+                REQUIRE(tracks->size() == 2);
 	
-				list<Track>::iterator iTrack = tracks.begin();
-				while (iTrack != tracks.end()) {
+                list<Track>::iterator iTrack = tracks->begin();
+                while (iTrack != tracks->end()) {
 					REQUIRE(iTrack->getConfidence() == max_confidence);
 					++iTrack;
 				}
@@ -100,13 +99,13 @@ SCENARIO("update tracks", "[SceneTracker]") {
 			THEN("no trackID is available, \n"
 				"after update with no blobs, trackIDs are available again") { 
 				REQUIRE(scene.nextTrackID() == 0);
-				REQUIRE(tracks.size() == max_n_tracks);			
+                REQUIRE(tracks->size() == max_n_tracks);
 				
 				// update with no blobs -> trackID available
 				blobs.clear();
 				tracks = scene.updateTracks(blobs);
 				REQUIRE(scene.nextTrackID() > 0);
-				REQUIRE(tracks.size() == 2);	
+                REQUIRE(tracks->size() == 2);
 			}
 		}
 
@@ -132,11 +131,11 @@ SCENARIO("update tracks", "[SceneTracker]") {
 // creates a track with high confidence that ends 1/2 velocity step before count pos
 //  on the left or on the right, depending on direction,
 //  so that next updateTracks() will move over count pos
-list<Track> createTrackBeforeCountPos(SceneTracker& scene, int vehicle_width, int vehicle_height, 
+list<Track>* createTrackBeforeCountPos(SceneTracker& scene, int vehicle_width, int vehicle_height,
 	int count_pos_x, int velocity_x) {
 
 	list<TrackEntry> blobs;
-	list<Track> tracks;
+    list<Track>* tracks;
 	int nUpdates = 5;
 
 	int track_length = abs(nUpdates * velocity_x);
@@ -156,7 +155,7 @@ list<Track> createTrackBeforeCountPos(SceneTracker& scene, int vehicle_width, in
 
 		tracks = scene.updateTracks(blobs);
 	}
-	return tracks;
+    return tracks;
 }
 
 SCENARIO("count vehicles", "[SceneTracker]") {
@@ -171,25 +170,22 @@ SCENARIO("count vehicles", "[SceneTracker]") {
 		int count_pos_x = stoi(pConfig->getParam("count_pos_x")); 
 		int count_track_length = stoi(pConfig->getParam("count_track_length"));
 
-		int max_confidence = stoi(pConfig->getParam("track_max_confidence"));
-		int max_n_tracks = stoi(pConfig->getParam("max_n_of_tracks"));
-
-		WHEN("vehicle has positive velocity and\n"
+        WHEN("vehicle has positive velocity and\n"
 			"is smaller than min_truck in width and height") {
 			int vehicle_width = truck_width - 1;
 			int vehicle_height = truck_height - 1;
 			int velocity_x = 10; // moves from left to right
-			list<Track> tracks = createTrackBeforeCountPos(scene, vehicle_width,
+            list<Track>* tracks = createTrackBeforeCountPos(scene, vehicle_width,
 				vehicle_height, count_pos_x, velocity_x);
 		
 			// count pos not reached yet, but track length sufficient
 			cr = scene.countVehicles();
 			REQUIRE(cr.carRight == 0);
-			REQUIRE(tracks.front().getLength() > count_track_length);
+            REQUIRE(tracks->front().getLength() > count_track_length);
 
 			THEN("carRight is counted") {
 				list<TrackEntry> blobs;
-				Rect vehicle = tracks.front().getActualEntry().rect();
+                Rect vehicle = tracks->front().getActualEntry().rect();
 				vehicle.x += velocity_x;
 
 				// one more updateTracks() and count pos is passed over
@@ -209,17 +205,17 @@ SCENARIO("count vehicles", "[SceneTracker]") {
 			int vehicle_width = truck_width - 1;
 			int vehicle_height = truck_height - 1;
 			int velocity_x = -10; // moves from right to left
-			list<Track> tracks = createTrackBeforeCountPos(scene, vehicle_width,
+            list<Track>* tracks = createTrackBeforeCountPos(scene, vehicle_width,
 				vehicle_height, count_pos_x, velocity_x);
 		
 			// count pos not reached yet, but track length sufficient
 			cr = scene.countVehicles();
 			REQUIRE(cr.carRight == 0);
-			REQUIRE(tracks.front().getLength() > count_track_length);
+            REQUIRE(tracks->front().getLength() > count_track_length);
 
 			THEN("carRight is counted") {
 				list<TrackEntry> blobs;
-				Rect vehicle = tracks.front().getActualEntry().rect();
+                Rect vehicle = tracks->front().getActualEntry().rect();
 				vehicle.x += velocity_x;
 
 				// one more updateTracks() and count pos is passed over
@@ -240,17 +236,17 @@ SCENARIO("count vehicles", "[SceneTracker]") {
 			int vehicle_width = truck_width - 1;
 			int vehicle_height = truck_height + 5;
 			int velocity_x = 10; // moves from right to left
-			list<Track> tracks = createTrackBeforeCountPos(scene, vehicle_width,
+            list<Track>* tracks = createTrackBeforeCountPos(scene, vehicle_width,
 				vehicle_height, count_pos_x, velocity_x);
 		
 			// count pos not reached yet, but track length sufficient
 			cr = scene.countVehicles();
 			REQUIRE(cr.carRight == 0);
-			REQUIRE(tracks.front().getLength() > count_track_length);
+            REQUIRE(tracks->front().getLength() > count_track_length);
 
 			THEN("carRight is counted") {
 				list<TrackEntry> blobs;
-				Rect vehicle = tracks.front().getActualEntry().rect();
+                Rect vehicle = tracks->front().getActualEntry().rect();
 				vehicle.x += velocity_x;
 
 				// one more updateTracks() and count pos is passed over
@@ -271,17 +267,17 @@ SCENARIO("count vehicles", "[SceneTracker]") {
 			int vehicle_width = truck_width - 1;
 			int vehicle_height = truck_height + 5;
 			int velocity_x = 10; // moves from right to left
-			list<Track> tracks = createTrackBeforeCountPos(scene, vehicle_width,
+            list<Track>* tracks = createTrackBeforeCountPos(scene, vehicle_width,
 				vehicle_height, count_pos_x, velocity_x);
 		
 			// count pos not reached yet, but track length sufficient
 			cr = scene.countVehicles();
 			REQUIRE(cr.carRight == 0);
-			REQUIRE(tracks.front().getLength() > count_track_length);
+            REQUIRE(tracks->front().getLength() > count_track_length);
 
 			THEN("carRight is counted") {
 				list<TrackEntry> blobs;
-				Rect vehicle = tracks.front().getActualEntry().rect();
+                Rect vehicle = tracks->front().getActualEntry().rect();
 				vehicle.x += velocity_x;
 
 				// one more updateTracks() and count pos is passed over

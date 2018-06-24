@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "../../videoprocessing/include/config.h" // includes tracker.h
+#include "../../CarCount/include/config.h" // includes tracker.h
 
 using namespace std;
 using namespace cv;
@@ -31,7 +31,7 @@ TEST_CASE( "is size similar", "[TrackEntry]" ) {
 	TrackEntry te(0, 0, 100, 100);
 
 	SECTION( "similar -> 10% larger is OK" ) {
-		REQUIRE(true == te.isSizeSimilar(TrackEntry(0, 0, 110, 110), 10));
+        REQUIRE(true == te.isSizeSimilar(TrackEntry(0, 0, 110, 110), 10));
 		REQUIRE(true == te.isSizeSimilar(TrackEntry(0, 0, 90, 90), 10));
 	}
 	SECTION( "not similar -> more than 10% larger is not OK" ) {

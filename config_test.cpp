@@ -1,8 +1,14 @@
 #include "stdafx.h"
 #include <cstdio> // rand()
 #include <map>
-#include "../../videoprocessing/include/config.h" // includes tracker.h
+#if defined (_WIN32)
+#include "../../VideoProcessing/include/config.h" // includes tracker.h
 #include "../../../cpp/inc/program_options.h"
+#else
+#include "../../CarCount/include/config.h" // includes tracker.h
+#include "../../cpp/inc/program_options.h"
+#endif
+
 //#include <sys/stat.h> TODO for Unix
 //#include <unistd.h> Linux: rmdir
 
@@ -10,17 +16,20 @@ using namespace std;
 
 
 SCENARIO("#dir001 getHomePath", "[Config]") {
+    string home;
 	#if defined (_WIN32)
 	char delim = '\\';
-	#elif defined (__linux__)
-	char delim = '/';
-	#else
-	throw "unsupported OS";
+    home = getenv("HOMEDRIVE");
+    home += delim
+    home += getenv("HOMEPATH");
+     home += delim;
+    #elif defined (__linux__)
+    char delim = '/';
+    char* env = getenv("HOME");
+    home += env;
+    home += delim;
 	#endif
 	GIVEN("$(HOME)") {
-		string home(getenv("HOMEDRIVE"));
-		home += getenv("HOMEPATH");
-
 		WHEN("config is created") {
 			THEN("home path is returned") {
 				REQUIRE(home == getHomePath());
@@ -32,23 +41,30 @@ SCENARIO("#dir001 getHomePath", "[Config]") {
 
 SCENARIO("#dir003 appendDirToPath", "[Config]") {
 	// path with trailing slash
-	string first("first");
+    #if defined (_WIN32)
+    char delim = '\\';
+    #elif defined (__linux__)
+    char delim = '/';
+    string first("first");
 	string second("second");
+
+
+#endif
 	GIVEN("first and second string without trailing slash") {
 		WHEN("second string is appended") {
 			string path = first;
 			appendDirToPath(path, second);
 			THEN("additional delimiter is inserted") {
-				REQUIRE(path.at(5) == '\\');
+                REQUIRE(path.at(5) == delim);
 			}
 		}
 		WHEN("second string with trailing is appended") {
-			string path = first + "\\";
+            string path = first + delim;
 			appendDirToPath(path, second);
 			THEN("no additional delimiter is inserted") {
-				size_t pos = path.find('\\');
+                size_t pos = path.find(delim);
 				++pos;
-				REQUIRE(path.find('\\', pos) == string::npos);
+                REQUIRE(path.find(delim, pos) == string::npos);
 			}
 		}
 	}
@@ -121,17 +137,17 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 	//  r(ate):	fps for video device
 	//  v(ideo size): frame size from pick_list (single digit number)
 	//  w(orking directory): working dir, starting in $home
-	char* optstr = "i:qr:v:w:";
+    const char* optstr = "i:qr:v:w:";
 
 	GIVEN("args for video input -i") {
-		char* iFile_OK = "traffic320x240.avi";
-		char* iCam_OK = "9";
-		char* iCam_Wrong = "a";
+        const char* iFile_OK = "traffic320x240.avi";
+        const char* iCam_OK = "9";
+        const char* iCam_Wrong = "a";
 		
 		Config config;
 
 		WHEN("i: no video input specified") {
-			char* av[] = {"progname", "-i"};
+            const char* av[] = {"progname", "-i"};
 			int ac = (sizeof(av)/sizeof(av[0]));	
 			ProgramOptions po(ac, av, optstr);
 			
@@ -143,7 +159,7 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 		}
 
 		WHEN("i: cam input device specified") {
-			char* av[] = {"progname", "-i", iCam_OK};
+            const char* av[] = {"progname", "-i", iCam_OK};
 			int ac = (sizeof(av)/sizeof(av[0]));	
 			ProgramOptions po(ac, av, optstr);
 			
@@ -157,7 +173,7 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 		}
 
 		WHEN("i: wrong cam input device specified") {
-			char* av[] = {"progname", "-i", iCam_Wrong};
+            const char* av[] = {"progname", "-i", iCam_Wrong};
 			int ac = (sizeof(av)/sizeof(av[0]));	
 			ProgramOptions po(ac, av, optstr);
 			
@@ -167,7 +183,7 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 		}
 
 		WHEN("i: video file specified") {
-			char* av[] = {"progname", "-i", iFile_OK};
+            const char* av[] = {"progname", "-i", iFile_OK};
 			int ac = (sizeof(av)/sizeof(av[0]));	
 			ProgramOptions po(ac, av, optstr);
 			
@@ -187,7 +203,7 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 
 		WHEN("r: frame rate correctly specified") {
 			string frameRate_OK("25");
-			char* av[] = {"progname", "-q", "-r", (char*)frameRate_OK.c_str()};
+            const char* av[] = {"progname", "-q", "-r", frameRate_OK.c_str()};
 			int ac = (sizeof(av)/sizeof(av[0]));	
 			ProgramOptions po(ac, av, optstr);
 			
@@ -199,7 +215,7 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 
 		WHEN("r: frame rate specified as float") {
 			string floatRate("20.0");
-			char* av[] = {"progname", "-q", "-r", (char*)floatRate.c_str()};
+            const char* av[] = {"progname", "-q", "-r", floatRate.c_str()};
 			int ac = (sizeof(av)/sizeof(av[0]));	
 			ProgramOptions po(ac, av, optstr);
 			
@@ -209,7 +225,7 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 		}
 		
 		WHEN("r: frame rate missing completely") {
-			char* av[] = {"progname", "-q", "-r", ""};
+            const char* av[] = {"progname", "-q", "-r", ""};
 			int ac = (sizeof(av)/sizeof(av[0]));	
 			ProgramOptions po(ac, av, optstr);
 			
@@ -227,7 +243,7 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 		// quiet must be specified in order to avoid readCmdLine to return false
 
 		WHEN("v: resolution ID correctly specified") {
-			char* av[] = {"progname", "-q", "-v", (char*)vResolution_OK.c_str()};
+            const char* av[] = {"progname", "-q", "-v", vResolution_OK.c_str()};
 			int ac = (sizeof(av)/sizeof(av[0]));
 			ProgramOptions po(ac, av, optstr);
 
@@ -238,7 +254,7 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 		}
 		
 		WHEN("v: resolution ID is missing") {
-			char* av[] = {"progname", "-q", "-v", ""};
+            const char* av[] = {"progname", "-q", "-v", ""};
 			int ac = (sizeof(av)/sizeof(av[0]));
 			ProgramOptions po(ac, av, optstr);
 
@@ -248,7 +264,7 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 		}
 
 		WHEN("v: resolution ID wrong") {
-			char* av[] = {"progname", "-q", "-v", (char*)vResolution_Wrong.c_str()};
+            const char* av[] = {"progname", "-q", "-v", vResolution_Wrong.c_str()};
 			int ac = (sizeof(av)/sizeof(av[0]));
 			ProgramOptions po(ac, av, optstr);
 
