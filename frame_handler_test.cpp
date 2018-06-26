@@ -161,7 +161,7 @@ SCENARIO("#frm004 FrameHandler::initCam, initFileReader, getFrameSize", "[Frame]
 		Config config;
 		FrameHandler frameHandler(&config);
 		
-		WHEN("internal cam is initialized with default resolution ID") {
+/*		WHEN("internal cam is initialized with default resolution ID") {
 			REQUIRE(true == frameHandler.initCam(0, 0));
 			THEN("frame size is 320 x 240") {
 				cv::Size2d frameSize = frameHandler.getFrameSize();
@@ -169,8 +169,13 @@ SCENARIO("#frm004 FrameHandler::initCam, initFileReader, getFrameSize", "[Frame]
 				REQUIRE(frameSize.height == 240);
 			}
 		}
+*/
+        #if defined (_WIN32)
+        string videoFilePath("D:\\Users\\Holger\\counter\\traffic320x240.avi");
+        #elif defined (__linux__)
+        string videoFilePath("/home/holger/counter/traffic320x240.avi");
+        #endif
 
-		string videoFilePath("D:\\Users\\Holger\\counter\\traffic320x240.avi");
 		REQUIRE(isFileExist(videoFilePath));
 
 		WHEN("file reader is initialized with valid video file") {

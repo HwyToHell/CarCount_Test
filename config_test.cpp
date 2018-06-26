@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include <cstdio> // rand()
+#include <cstdio> // rand(), remove()
 #include <map>
 #if defined (_WIN32)
 #include "../../VideoProcessing/include/config.h" // includes tracker.h
@@ -12,11 +12,11 @@
 //#include <sys/stat.h> TODO for Unix
 //#include <unistd.h> Linux: rmdir
 
-using namespace std;
+//using namespace std;
 
 
 SCENARIO("#dir001 getHomePath", "[Config]") {
-    string home;
+    std::string home;
 	#if defined (_WIN32)
 	char delim = '\\';
     home = getenv("HOMEDRIVE");
@@ -45,26 +45,27 @@ SCENARIO("#dir003 appendDirToPath", "[Config]") {
     char delim = '\\';
     #elif defined (__linux__)
     char delim = '/';
-    string first("first");
-	string second("second");
+    #endif
+    std::string first("first");
+    std::string second("second");
 
 
-#endif
+
 	GIVEN("first and second string without trailing slash") {
 		WHEN("second string is appended") {
-			string path = first;
+            std::string path = first;
 			appendDirToPath(path, second);
 			THEN("additional delimiter is inserted") {
                 REQUIRE(path.at(5) == delim);
 			}
 		}
 		WHEN("second string with trailing is appended") {
-            string path = first + delim;
+            std::string path = first + delim;
 			appendDirToPath(path, second);
 			THEN("no additional delimiter is inserted") {
                 size_t pos = path.find(delim);
 				++pos;
-                REQUIRE(path.find(delim, pos) == string::npos);
+                REQUIRE(path.find(delim, pos) == std::string::npos);
 			}
 		}
 	}
@@ -75,9 +76,9 @@ SCENARIO("#dir002 isFileExist", "[Config]") {
 	GIVEN("unique test path underneath /home") {
 		
 		// generate test dir name	
-		string testDir("test123");
+        std::string testDir("test123");
 		// underneath /home
-		string testPath = getHomePath();
+        std::string testPath = getHomePath();
 		appendDirToPath(testPath, testDir);
 
 		WHEN("test path is created") {
@@ -111,7 +112,7 @@ SCENARIO("#cfg001 Config::Config", "[Config]") {
 		// check other parameters for != ""
 		WHEN("config is constructed") {
 			THEN("application_path is set") {
-				string appPath = getHomePath();
+                std::string appPath = getHomePath();
 				appendDirToPath(appPath, "counter");
 				REQUIRE(config.getParam("application_path") == appPath);
 				REQUIRE(isFileExist(appPath));
@@ -119,8 +120,8 @@ SCENARIO("#cfg001 Config::Config", "[Config]") {
 			AND_THEN("all other parameters return valid string values") {
 				size_t nParams = sizeof(configParams) / sizeof(configParams[0]);
 				for (size_t n = 0; n < nParams; ++n) {
-					string name = configParams[n];
-					string value = config.getParam(name);
+                    std::string name = configParams[n];
+                    std::string value = config.getParam(name);
 					REQUIRE(value != "");
 				}
 			}
@@ -153,7 +154,7 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 			
 			THEN("use standard cam == 0") {
 				REQUIRE(config.readCmdLine(po) == true);
-				string vidDevice = config.getParam("cam_device_ID");
+                std::string vidDevice = config.getParam("cam_device_ID");
 				REQUIRE(vidDevice == "0"); 
 			}
 		}
@@ -165,9 +166,9 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 			
 			THEN("config returns device ID") {
 				REQUIRE(config.readCmdLine(po) == true);
-				string vidDevice = config.getParam("cam_device_ID");
-				string fromCam = config.getParam("is_video_from_cam");
-				REQUIRE(vidDevice == string(iCam_OK)); 
+                std::string vidDevice = config.getParam("cam_device_ID");
+                std::string fromCam = config.getParam("is_video_from_cam");
+                REQUIRE(vidDevice == std::string(iCam_OK));
 				REQUIRE(fromCam == "true"); 
 			}
 		}
@@ -189,9 +190,9 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 			
 			THEN("config returns file name, from_cam flag == false") {
 				REQUIRE(config.readCmdLine(po) == true);
-				string vidFile = config.getParam("video_file");
-				string fromCam = config.getParam("is_video_from_cam");
-				REQUIRE(vidFile == string(iFile_OK)); 
+                std::string vidFile = config.getParam("video_file");
+                std::string fromCam = config.getParam("is_video_from_cam");
+                REQUIRE(vidFile == std::string(iFile_OK));
 				REQUIRE(fromCam == "false"); 
 			}
 		}
@@ -202,7 +203,7 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 		// quiet must be specified in order to avoid readCmdLine to return false
 
 		WHEN("r: frame rate correctly specified") {
-			string frameRate_OK("25");
+            std::string frameRate_OK("25");
             const char* av[] = {"progname", "-q", "-r", frameRate_OK.c_str()};
 			int ac = (sizeof(av)/sizeof(av[0]));	
 			ProgramOptions po(ac, av, optstr);
@@ -214,7 +215,7 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 		}
 
 		WHEN("r: frame rate specified as float") {
-			string floatRate("20.0");
+            std::string floatRate("20.0");
             const char* av[] = {"progname", "-q", "-r", floatRate.c_str()};
 			int ac = (sizeof(av)/sizeof(av[0]));	
 			ProgramOptions po(ac, av, optstr);
@@ -237,8 +238,8 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 	} // end GIVEN("args for video frame rate -r")
 
 	GIVEN("args for cam resolution ID -v") {
-		string vResolution_OK = "0";
-		string vResolution_Wrong = "99";
+        std::string vResolution_OK = "0";
+        std::string vResolution_Wrong = "99";
 		Config config;
 		// quiet must be specified in order to avoid readCmdLine to return false
 
@@ -277,17 +278,17 @@ SCENARIO("#cfg002 Config::readCmdLine", "[Config]") {
 
 // config file path for test case #cfg004
 // module global in order to delete 
-static string cfg004_FilePath;
+static std::string cfg004_FilePath;
 SCENARIO("#cfg004 Config::saveConfigToFile and read back", "[Config]") {
 	GIVEN("good parameter list with test value") {
 		Config config;
-		string appPath = config.getParam("application_path");
+        std::string appPath = config.getParam("application_path");
 		cfg004_FilePath = appPath;
 		appendDirToPath(cfg004_FilePath, "test.sqlite");
 		
 		// 1 st pass: config file does not exist
 		WHEN("test values are transferred to config") {
-			string testValue("999");
+            std::string testValue("999");
 			size_t nParams = sizeof(configParams) / sizeof(configParams[0]);
 			for (size_t n = 0; n < nParams; ++n) {
 				REQUIRE(config.setParam(configParams[n], testValue));
@@ -320,7 +321,7 @@ SCENARIO("#cfg004 Config::saveConfigToFile and read back", "[Config]") {
 		// 2nd pass: config file does exist
 		WHEN("config file exists and second test values are transferred to config") {
 			REQUIRE(true == isFileExist(cfg004_FilePath));
-			string testValue2nd("222");
+            std::string testValue2nd("222");
 			size_t nParams = sizeof(configParams) / sizeof(configParams[0]);
 			for (size_t n = 0; n < nParams; ++n) {
 				REQUIRE(config.setParam(configParams[n], testValue2nd));
@@ -349,14 +350,15 @@ SCENARIO("#cfg004 Config::saveConfigToFile and read back", "[Config]") {
 } // end SCENARIO("#cfg004 Config::saveConfigToFile and read back", "[Config]")
 
 
-static string cfg003_FilePath;
-static string std_config_file;
+static std::string cfg003_FilePath;
+static std::string std_config_file;
 SCENARIO("#cfg003 Config::readConfigFromFile", "[Config]") {
 	GIVEN("good config and config file") {
 		Config config;
 		// standard config file, created in any case when config is instantiated
 		std_config_file = config.getParam("application_path");
 		appendDirToPath(std_config_file, "config.sqlite");
+        config.saveConfigToFile(std_config_file);
 
 		// separate config file
 		cfg003_FilePath = config.getParam("application_path");
@@ -373,7 +375,7 @@ SCENARIO("#cfg003 Config::readConfigFromFile", "[Config]") {
 
 		WHEN("config file does not exist") {
 			// make sure file does not exist
-			string fileNotExistent = config.getParam("application_path");
+            std::string fileNotExistent = config.getParam("application_path");
 			appendDirToPath(fileNotExistent, "not_existent.sqlite");
 			REQUIRE(isFileExist(fileNotExistent) == false);
 
@@ -385,8 +387,8 @@ SCENARIO("#cfg003 Config::readConfigFromFile", "[Config]") {
 
 	// tear down
 	WHEN("tests are passed, config file #003 and std_config_file can deleted") {
-		REQUIRE(remove(cfg003_FilePath.c_str()) == 0);
-		REQUIRE(remove(std_config_file.c_str()) == 0);
+        REQUIRE(::remove(cfg003_FilePath.c_str()) == 0);
+        REQUIRE(::remove(std_config_file.c_str()) == 0);
 	}
 
 } // end SCENARIO("#cfg003 Config::readConfigFromFile", "[Config]")
