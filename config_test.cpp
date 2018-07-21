@@ -5,8 +5,8 @@
 #include "../../VideoProcessing/include/config.h" // includes tracker.h
 #include "../../../cpp/inc/program_options.h"
 #else
-#include "../../CarCount/include/config.h" // includes tracker.h
-#include "../../cpp/inc/program_options.h"
+#include "../CarCount/include/config.h" // includes tracker.h
+#include "../cpp/inc/program_options.h"
 #endif
 
 //#include <sys/stat.h> TODO for Unix
@@ -89,8 +89,8 @@ SCENARIO("#dir002 isFileExist", "[Config]") {
 		}
 
 		WHEN("test path is deleted") {
-			#if defined (_WIN32)
-			REQUIRE(_rmdir(testPath.c_str()) == 0);
+            #if defined (_WIN32)
+            REQUIRE(_rmdir(testPath.c_str()) == 0);
 			#elif defined (__linux__)
 			REQUIRE(rmdir(testPath.c_str()) == 0);
 			#else
